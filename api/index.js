@@ -1,7 +1,7 @@
 import 'dotenv/config';
-import { getDb } from './db.js';
-import { seedIfNeeded } from './seed.js';
-import { ensurePasswordHash } from './auth.js';
+import { getDb } from '../server/db.js';
+import { seedIfNeeded } from '../server/seed.js';
+import { ensurePasswordHash } from '../server/auth.js';
 import createApp from '../server/app.js';
 
 /**
