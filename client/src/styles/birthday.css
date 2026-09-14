@@ -1,0 +1,343 @@
+/* ═══════════════════════════════════════════════════════════════════
+   BIRTHDAY EXPERIENCE — Cinematic / Emotional / Immersive
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ─── Intro Screen ──────────────────────────────────────────────── */
+.intro-screen{
+  position:relative;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  min-height:100dvh;text-align:center;
+  padding:2rem;
+  background:radial-gradient(ellipse at 50% 60%,#13101a,var(--bg) 70%);
+}
+.intro-title{
+  font-family:var(--font-display);
+  font-size:clamp(1.6rem,5vw,3rem);
+  font-weight:400;letter-spacing:.02em;
+  color:var(--text);opacity:0;
+  animation:fadeUp 1.8s .6s cubic-bezier(.22,1,.36,1) forwards;
+  max-width:16ch;line-height:1.4;
+}
+.intro-subtitle{
+  margin-top:1.2rem;font-size:.95rem;color:var(--text-dim);
+  opacity:0;animation:fadeUp 1.4s 2s cubic-bezier(.22,1,.36,1) forwards;
+}
+.intro-enter{
+  margin-top:3rem;
+  display:inline-flex;align-items:center;gap:.5rem;
+  padding:.75rem 2.4rem;
+  font-family:var(--font-display);font-size:1.1rem;font-weight:500;
+  letter-spacing:.08em;text-transform:uppercase;
+  color:var(--bg);background:var(--accent);
+  border-radius:60px;
+  opacity:0;animation:fadeUp 1.4s 2.6s cubic-bezier(.22,1,.36,1) forwards;
+  transition:transform .25s ease,box-shadow .25s ease;
+}
+.intro-enter:hover{transform:scale(1.04);box-shadow:0 0 32px rgba(232,180,184,.3)}
+.intro-enter:active{transform:scale(.97)}
+.intro-enter::after{content:'→';transition:transform .2s ease}
+.intro-enter:hover::after{transform:translateX(4px)}
+
+/* ─── Birthday Layout (after intro) ─────────────────────────────── */
+.birthday-app{
+  min-height:100dvh;
+  background:var(--bg);
+}
+.birthday-app[data-vignette="true"]::before{
+  content:'';position:fixed;inset:0;
+  background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,.65) 100%);
+  pointer-events:none;z-index:9000;
+}
+.birthday-app[data-grain="true"]::after{
+  content:'';position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:9001;opacity:.5;mix-blend-mode:overlay;
+}
+
+/* ─── Hero Section ──────────────────────────────────────────────── */
+.hero-section{
+  position:relative;
+  min-height:100dvh;display:flex;align-items:center;justify-content:center;
+  text-align:center;
+}
+.hero-bg{
+  position:absolute;inset:0;
+  background-size:cover;background-position:center;
+  filter:brightness(.4) saturate(.8);
+  transform:scale(1.05);
+  animation:heroZoom 20s ease-in-out infinite alternate;
+}
+@keyframes heroZoom{from{transform:scale(1.05)}to{transform:scale(1.12)}}
+.hero-overlay{
+  position:absolute;inset:0;
+  background:linear-gradient(to top,var(--bg) 0%,transparent 50%,var(--bg) 100%);
+}
+.hero-content{
+  position:relative;z-index:2;
+  padding:2rem;
+}
+.hero-heading{
+  font-family:var(--font-display);
+  font-size:clamp(2.2rem,7vw,5.5rem);
+  font-weight:400;font-style:italic;
+  letter-spacing:-.01em;line-height:1.1;
+  color:var(--text);
+}
+.hero-sub{
+  margin-top:1rem;
+  font-size:clamp(.9rem,2vw,1.15rem);
+  color:var(--text-dim);
+  font-weight:300;
+}
+.hero-scroll-hint{
+  position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);
+  color:var(--text-muted);font-size:1.2rem;
+  animation:heroScroll 2s ease-in-out infinite;
+  z-index:2;
+}
+@keyframes heroScroll{
+  0%,100%{transform:translate(-50%,0);opacity:.4}
+  50%{transform:translate(-50%,8px);opacity:1}
+}
+
+/* ─── Music Controls ────────────────────────────────────────────── */
+.music-bar{
+  position:fixed;top:0;left:0;right:0;z-index:9500;
+  display:flex;align-items:center;gap:.75rem;
+  padding:.6rem 1.2rem;
+  background:rgba(10,10,12,.82);
+  backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--border);
+  transform:translateY(-100%);
+  transition:transform .5s cubic-bezier(.22,1,.36,1);
+}
+.music-bar.visible{transform:translateY(0)}
+.music-bar-cover{
+  width:36px;height:36px;border-radius:4px;object-fit:cover;
+  background:var(--surface);
+}
+.music-bar-info{flex:1;min-width:0}
+.music-bar-title{
+  font-size:.8rem;font-weight:500;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.music-bar-artist{
+  font-size:.7rem;color:var(--text-muted);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.music-bar-progress{
+  width:120px;height:3px;background:var(--border);border-radius:2px;
+  overflow:hidden;flex-shrink:0;
+}
+.music-bar-progress-fill{
+  height:100%;background:var(--accent);border-radius:2px;
+  transition:width .25s linear;
+}
+.music-bar-btn{
+  width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+  border-radius:50%;transition:background var(--transition);
+  font-size:1rem;flex-shrink:0;
+}
+.music-bar-btn:hover{background:var(--surface)}
+.music-bar-time{font-size:.7rem;color:var(--text-muted);min-width:65px;text-align:right;font-variant-numeric:tabular-nums}
+
+/* ─── Memory Album ──────────────────────────────────────────────── */
+.album-section{
+  position:relative;
+  min-height:100dvh;
+  padding:10vh 2rem;
+  display:flex;flex-direction:column;align-items:center;
+}
+.album-header{
+  text-align:center;margin-bottom:4rem;
+}
+.album-label{
+  font-family:var(--font-display);font-size:.85rem;
+  letter-spacing:.15em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:.5rem;
+}
+.album-counter{
+  font-family:var(--font-display);font-size:1rem;
+  color:var(--text-muted);
+}
+
+/* Single memory card */
+.memory-card{
+  position:relative;
+  width:min(85vw,640px);
+  margin:0 auto;
+}
+.memory-image-wrapper{
+  position:relative;
+  width:100%;aspect-ratio:4/3;
+  border-radius:var(--radius-lg);
+  overflow:hidden;
+  background:var(--surface);
+  box-shadow:0 20px 60px rgba(0,0,0,.5);
+}
+.memory-image{
+  width:100%;height:100%;object-fit:cover;
+  transition:transform 1.2s cubic-bezier(.22,1,.36,1),filter .8s ease;
+}
+.memory-image-wrapper:hover .memory-image{
+  transform:scale(1.04);
+}
+.memory-info{
+  margin-top:1.6rem;text-align:center;
+}
+.memory-date{
+  font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--text-muted);margin-bottom:.4rem;
+}
+.memory-title{
+  font-family:var(--font-display);
+  font-size:clamp(1.3rem,4vw,2rem);
+  font-weight:500;color:var(--text);line-height:1.3;
+}
+.memory-desc{
+  margin-top:.6rem;
+  font-size:.95rem;color:var(--text-dim);
+  max-width:40ch;margin-inline:auto;
+  line-height:1.7;
+}
+.memory-location{
+  margin-top:.5rem;font-size:.78rem;color:var(--text-muted);
+  letter-spacing:.06em;
+}
+.memory-location::before{content:'📍 ';font-size:.7rem}
+
+/* Image cinematic movement */
+.cinemove{animation:cinemove 9s ease-in-out infinite alternate}
+@keyframes cinemove{
+  from{transform:scale(1.02) translateX(-0.5%)}
+  to{transform:scale(1.1) translateX(0.5%)}
+}
+
+/* Memory card enter/exit transitions */
+.memory-card[data-phase="enter"],
+.memory-card[data-phase="exit"]{
+  animation-fill-mode:both;
+  animation-duration:420ms;
+  animation-timing-function:cubic-bezier(.22,1,.36,1);
+}
+.memory-card[data-phase="enter"]{animation-name:memEnter}
+.memory-card[data-phase="exit"]{animation-name:memExit;opacity:0;pointer-events:none;position:absolute;top:0;left:0;right:0}
+@keyframes memEnter{
+  from{opacity:0}
+  to{opacity:1}
+}
+@keyframes memExit{
+  from{opacity:1}
+  to{opacity:0}
+}
+.memory-card.from-right{animation:slideInRight 420ms cubic-bezier(.22,1,.36,1) both}
+.memory-card.from-left{animation:slideInLeft 420ms cubic-bezier(.22,1,.36,1) both}
+@keyframes slideInRight{from{opacity:0;transform:translateX(60px);filter:blur(6px)}to{opacity:1;transform:none;filter:blur(0)}}
+@keyframes slideInLeft{from{opacity:0;transform:translateX(-60px);filter:blur(6px)}to{opacity:1;transform:none;filter:blur(0)}}
+.memory-card.to-left{animation:slideOutLeft 380ms cubic-bezier(.22,1,.36,1) both}
+.memory-card.to-right{animation:slideOutRight 380ms cubic-bezier(.22,1,.36,1) both}
+@keyframes slideOutLeft{from{opacity:1;transform:none}to{opacity:0;transform:translateX(-46px);filter:blur(5px)}}
+@keyframes slideOutRight{from{opacity:1;transform:none}to{opacity:0;transform:translateX(46px);filter:blur(5px)}}
+
+/* Hero heading reveal */
+.hero-heading{opacity:0;animation:heroReveal 1.4s .3s cubic-bezier(.22,1,.36,1) forwards}
+@keyframes heroReveal{from{opacity:0;transform:translateY(24px);letter-spacing:.06em}to{opacity:1;transform:none;letter-spacing:-.01em}}
+
+/* ─── Global keyframes ──────────────────────────────────────────── */
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(24px)}
+  to{opacity:1;transform:none}
+}
+
+/* Navigation */
+.album-nav{
+  display:flex;align-items:center;gap:2rem;
+  margin-top:2.5rem;
+}
+.album-nav-btn{
+  display:flex;align-items:center;gap:.4rem;
+  padding:.6rem 1.4rem;
+  font-size:.85rem;letter-spacing:.06em;text-transform:uppercase;
+  border:1px solid var(--border);
+  border-radius:40px;
+  transition:all var(--transition);
+}
+.album-nav-btn:hover:not(:disabled){
+  border-color:var(--accent);color:var(--accent);
+  box-shadow:0 0 20px rgba(232,180,184,.1);
+}
+.album-nav-btn:disabled{opacity:.3;cursor:default}
+.album-nav-btn .arrow{font-size:1.1rem}
+
+/* ─── Final Section ─────────────────────────────────────────────── */
+.final-section{
+  position:relative;
+  min-height:100dvh;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;
+  padding:4rem 2rem;
+}
+.final-heading{
+  font-family:var(--font-display);
+  font-size:clamp(2rem,6vw,4rem);
+  font-weight:400;font-style:italic;
+  line-height:1.15;
+  color:var(--text);
+}
+.final-name{
+  display:block;
+  font-size:clamp(2.5rem,8vw,5.5rem);
+  font-weight:600;
+  background:linear-gradient(135deg,var(--accent),#f5e6c8);
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;
+  margin-top:.3rem;
+}
+.final-message{
+  margin-top:2rem;
+  font-family:var(--font-display);
+  font-size:clamp(1rem,2.5vw,1.35rem);
+  color:var(--text-dim);
+  max-width:42ch;line-height:1.8;
+  font-weight:400;
+}
+.final-image{
+  margin-top:3rem;
+  width:min(300px,80vw);aspect-ratio:1;
+  border-radius:50%;object-fit:cover;
+  border:3px solid var(--accent);
+  box-shadow:0 0 50px rgba(232,180,184,.15);
+}
+.final-signature{
+  margin-top:2.5rem;
+  font-family:var(--font-display);font-size:1rem;
+  font-style:italic;color:var(--accent);
+  letter-spacing:.03em;
+}
+.final-heart{
+  margin-top:2rem;font-size:1.6rem;
+  animation:heartbeat 1.6s ease-in-out infinite;
+}
+@keyframes heartbeat{0%,100%{transform:scale(1)}15%{transform:scale(1.15)}30%{transform:scale(1)}}
+
+/* ─── Particle Canvas ───────────────────────────────────────────── */
+.particle-canvas{
+  position:fixed;inset:0;z-index:-1;pointer-events:none;
+}
+
+/* ─── Scroll fade-ins ───────────────────────────────────────────── */
+.fade-section{
+  opacity:0;transform:translateY(32px);
+  transition:opacity .9s cubic-bezier(.22,1,.36,1),transform .9s cubic-bezier(.22,1,.36,1);
+}
+.fade-section.visible{opacity:1;transform:translateY(0)}
+
+/* ─── Mobile adjustments ────────────────────────────────────────── */
+@media (max-width:600px){
+  .music-bar{padding:.5rem .8rem;gap:.5rem}
+  .music-bar-progress{width:60px}
+  .music-bar-info{display:none}
+  .album-section{padding:8vh 1rem}
+  .album-nav{gap:1rem}
+  .album-nav-btn{padding:.5rem 1rem;font-size:.78rem}
+}

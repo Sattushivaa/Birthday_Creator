@@ -1,0 +1,32 @@
+{
+  "name": "birthday-experience",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A cinematic, music-driven interactive birthday memory album",
+  "scripts": {
+    "dev": "concurrently -k -n server,client -c blue,magenta \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "nodemon server/index.js",
+    "dev:client": "vite --config client/vite.config.js client",
+    "build": "vite build --config client/vite.config.js client",
+    "start": "node server/index.js",
+    "seed": "node server/seed.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
+    "dotenv": "^17.4.2",
+    "express": "^4.19.2",
+    "mongodb": "^7.6.0",
+    "multer": "^1.4.5-lts.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.24.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.1.4",
+    "vite": "^5.3.4"
+  }
+}
