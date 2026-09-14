@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { API } from './api.js';
 import BirthdayExperience from './pages/BirthdayExperience.jsx';
@@ -17,11 +17,15 @@ export default function App() {
   const [configError, setConfigError] = useState(null);
   const [auth, setAuth] = useState({ checked: false, authenticated: false });
 
-  const refreshConfig = async () => {
+  // Config poll interval — keeps a page that is already open (e.g. a guest's
+  // device at the party) in sync with creator edits without a manual reload.
+  const CONFIG_POLL_MS = 30_000;
+
+  const refreshConfig = useCallback(async () => {
     const cfg = await API.getConfig();
     setConfig(cfg);
     return cfg;
-  };
+  }, []);
 
   useEffect(() => {
     refreshConfig().catch((err) => {
@@ -31,7 +35,30 @@ export default function App() {
     API.authStatus()
       .then((s) => setAuth({ checked: true, authenticated: s.authenticated }))
       .catch(() => setAuth({ checked: true, authenticated: false }));
-  }, []);
+  }, [refreshConfig]);
+
+  // Re-sync config while the tab is open: poll quietly in the background and
+  // refresh immediately whenever the tab regains focus. This is what lets an
+  // open frontend (a "separate user") reflect changes a creator just made.
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = () => {
+      if (cancelled) return;
+      refreshConfig().catch(() => {
+        /* transient blip — next tick will retry */
+      });
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    const timer = setInterval(refresh, CONFIG_POLL_MS);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisible);
+      clearInterval(timer);
+    };
+  }, [refreshConfig]);
 
   // Loading splash while initial config arrives.
   if (!config && !configError) {

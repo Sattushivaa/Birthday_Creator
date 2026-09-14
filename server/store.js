@@ -41,24 +41,31 @@ const DEFAULT_CONFIG = {
   }
 };
 
-let cache = null;
-
 /* ── Site config ─────────────────────────────────────────────────────── */
 
+/**
+ * Read the current site config straight from MongoDB.
+ *
+ * NOTE: intentionally NOT cached in memory. The same code runs on Vercel
+ * serverless functions, where each warm instance holds its own module state;
+ * a cached config would go stale on every instance except the one that
+ * handled the creator's save, so a separate viewer served by another instance
+ * would keep seeing old content (e.g. a replaced memory photo) indefinitely.
+ * The config is a single tiny document read by _id — a Mongo read per
+ * request is negligible at this scale.
+ */
 export async function getConfig() {
-  if (cache) return cache;
   const db = await getDb();
   const doc = await db.collection('site').findOne({ _id: 'main' });
   if (!doc) return null; // not initialised yet — seed runs on first boot
   delete doc._id;
   delete doc.updatedAt;
-  cache = doc;
-  return cache;
+  return doc;
 }
 
 export async function saveConfig(patch) {
   const db = await getDb();
-  const current = cache || (await getConfig()) || structuredClone(DEFAULT_CONFIG);
+  const current = (await getConfig()) || structuredClone(DEFAULT_CONFIG);
   // Deep-merge the provided patch (arrays are replaced wholesale).
   const next = { ...current, ...patch };
   for (const key of Object.keys(patch)) {
@@ -76,7 +83,6 @@ export async function saveConfig(patch) {
   next.updatedAt = new Date().toISOString();
   const { _id, ...rest } = next;
   await db.collection('site').updateOne({ _id: 'main' }, { $set: rest }, { upsert: true });
-  cache = next;
   return next;
 }
 
@@ -85,7 +91,6 @@ export async function replaceConfig(next) {
   next.updatedAt = new Date().toISOString();
   const { _id, ...rest } = next;
   await db.collection('site').updateOne({ _id: 'main' }, { $set: rest }, { upsert: true });
-  cache = next;
   return next;
 }
 
