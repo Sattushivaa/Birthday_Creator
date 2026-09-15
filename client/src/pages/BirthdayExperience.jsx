@@ -28,12 +28,32 @@ export default function BirthdayExperience() {
   const [secretVisible, setSecretVisible] = useState(false);
   const [ambientOn, setAmbientOn] = useState(Boolean(AUDIO_SRC || music.src));
   const audioRef = useRef(null);
-  const name = AKKI_NAME;
-  const birthday = BIRTHDAY;
-  const memoryData = useMemo(() => MEMORIES.map((memory, index) => ({
-    ...memory,
-    image: memory.image || PHOTOS.memories[index] || config?.memories?.[index]?.image
-  })), [config]);
+  const name = config?.person?.name?.trim() || AKKI_NAME;
+  const birthday = config?.person?.birthday?.trim() || BIRTHDAY;
+  const experience = config?.experience || {};
+  const liveThings = experience.favoriteThings?.length ? experience.favoriteThings : FAVORITE_THINGS;
+  const liveLetter = experience.letter?.trim() || PERSONAL_LETTER;
+  const liveBlessing = experience.blessing?.trim() || 'May your imagination remain an inexhaustible wellspring of wonder—turning the ineffable into beauty, the intangible into art, and the unseen into something worth remembering.\n\nMay you find places that make you feel alive, people who make you feel understood, dreams that make you fearless, and ordinary days that quietly become beautiful memories.\n\nMay you keep creating. Keep dancing. Keep discovering. Keep becoming.\n\nAnd may life be gentle with you.';
+  const memoryData = useMemo(() => {
+    const liveMemories = (config?.memories || []).filter((memory) => memory.enabled !== false);
+    if (!liveMemories.length) return MEMORIES;
+    return liveMemories.map((memory, index) => ({
+      eyebrow: `${String(index + 1).padStart(2, '0')} — ${memory.title || 'A moment'}`,
+      title: memory.title || 'A moment',
+      text: memory.description || '[Add a memory here when you are ready.]',
+      image: memory.image || PHOTOS.memories[index]
+    }));
+  }, [config]);
+
+  useEffect(() => {
+    if (!entered) return undefined;
+    const screens = Array.from(document.querySelectorAll('.birthday-app.is-entered .chapter'));
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => entry.target.classList.toggle('scene-active', entry.isIntersecting));
+    }, { threshold: 0.58 });
+    screens.forEach((screen) => observer.observe(screen));
+    return () => observer.disconnect();
+  }, [entered]);
 
   useEffect(() => {
     const onKey = (event) => {
@@ -71,7 +91,7 @@ export default function BirthdayExperience() {
   };
 
   return (
-    <main className={`birthday-app ${entered ? 'is-entered' : ''} ${wished ? 'is-wished' : ''}`}>
+    <main className={`birthday-app ${entered ? 'is-entered' : ''} ${wished ? 'is-wished' : ''}`} style={{ '--gold': config?.appearance?.accent || '#cfb899' }}>
       <div className="ambient-stars" aria-hidden="true" />
       <button className="secret-star" onClick={clickSecret} aria-label="A tiny star">✦</button>
       {secretVisible && <div className="secret-note" role="status"><strong>You found the little secret.</strong><span>Some things are better discovered than explained.</span></div>}
@@ -117,9 +137,9 @@ export default function BirthdayExperience() {
           <div className="chapter-intro"><h2>Things that<br /><em>feel like you.</em></h2><p>A constellation of small details — the things that give your orbit its particular light.</p></div>
           <div className="constellation" role="list" aria-label="Things associated with Akki ji">
             <svg viewBox="0 0 720 440" aria-hidden="true"><path d="M100 320 Q230 90 390 220 T650 100 M180 80 Q350 250 590 350 M85 330 Q350 300 650 100" /></svg>
-            {FAVORITE_THINGS.map((thing, index) => <button key={thing.key} className={`constellation-point point-${index + 1} ${activeThing === thing.key ? 'active' : ''}`} onClick={() => setActiveThing(activeThing === thing.key ? null : thing.key)} role="listitem" aria-label={`Open ${thing.label}`}><span>{thing.label}</span><i /><b>{String(index + 1).padStart(2, '0')}</b></button>)}
+            {liveThings.map((thing, index) => <button key={thing.key || thing.label} className={`constellation-point point-${(index % 10) + 1} ${activeThing === (thing.key || thing.label) ? 'active' : ''}`} onClick={() => setActiveThing(activeThing === (thing.key || thing.label) ? null : (thing.key || thing.label))} role="listitem" aria-label={`Open ${thing.label}`}><span>{thing.label}</span><i /><b>{String(index + 1).padStart(2, '0')}</b></button>)}
           </div>
-          <div className="thing-card" aria-live="polite">{activeThing ? <><span>{FAVORITE_THINGS.find((item) => item.key === activeThing)?.label}</span><p>{FAVORITE_THINGS.find((item) => item.key === activeThing)?.note}</p></> : <p>Touch a star to open a detail.</p>}</div>
+          <div className="thing-card" aria-live="polite">{activeThing ? <><span>{liveThings.find((item) => (item.key || item.label) === activeThing)?.label}</span><p>{liveThings.find((item) => (item.key || item.label) === activeThing)?.note}</p></> : <p>Touch a star to open a detail.</p>}</div>
         </section>
 
         <section id="moments" className="chapter moments-chapter story-light">
@@ -144,11 +164,11 @@ export default function BirthdayExperience() {
 
         <section id="gift" className="chapter gift-chapter"><SectionLabel number="07">the gift box</SectionLabel><div className={`gift-stage ${giftOpen ? 'open' : ''}`}><button className="gift-box" onClick={() => setGiftOpen(!giftOpen)} aria-label={giftOpen ? 'Gift opened' : 'Open the gift'}><span className="gift-lid" /><span className="gift-body" /><span className="gift-ribbon ribbon-v" /><span className="gift-ribbon ribbon-h" /><span className="gift-label">OPEN<br />WHEN READY</span></button><div className="gift-reveal"><p>Inside: more time to make beautiful things.</p><strong>A smartwatch — for the hours that are yours.</strong><small>and a reminder to keep looking up.</small></div></div></section>
 
-        <section id="blessing" className="chapter blessing-chapter"><SectionLabel number="08">the birthday blessing</SectionLabel><div className="blessing-copy"><h2>For the year ahead<span>…</span></h2><p>May your imagination remain an inexhaustible wellspring of wonder — turning the ineffable into beauty, the intangible into art, and the unseen into something worth remembering.</p><p>May you find places that make you feel alive, people who make you feel understood, dreams that make you fearless, and ordinary days that quietly become beautiful memories.</p><p className="handwritten">May you keep creating.<br />Keep dancing.<br />Keep discovering.<br />Keep becoming.</p><p>And may life be gentle with you.</p></div></section>
+        <section id="blessing" className="chapter blessing-chapter"><SectionLabel number="08">the birthday blessing</SectionLabel><div className="blessing-copy"><h2>For the year ahead<span>…</span></h2>{liveBlessing.split('\n\n').map((paragraph, index) => <p className={index === 2 ? 'handwritten' : ''} key={`${paragraph}-${index}`}>{paragraph}</p>)}</div></section>
 
         <section id="future" className="chapter future-chapter story-light"><SectionLabel number="09">unwritten chapters</SectionLabel><div className="book"><div className="book-page page-left" /><div className="book-page page-right" /><div className="book-spine" /></div><div className="future-copy"><h2>There is still<br /><em>so much ahead.</em></h2><p>There are places you haven’t seen.<br /><br />Things you haven’t created.<br /><br />Songs you haven’t danced to.<br /><br />Photographs you haven’t taken.<br /><br />Memories you haven’t made.<br /><br />And versions of yourself<br />you haven’t met yet.</p><strong>May you meet them all.</strong></div></section>
 
-        <section id="letter" className="chapter letter-chapter"><SectionLabel number="10">the letter</SectionLabel><div className="letter-paper"><p className="letter-to">Dear {name},</p><div className="letter-body">{PERSONAL_LETTER.split('\n\n').map((line, index) => <p key={`${line}-${index}`}>{line}</p>)}</div><p className="letter-signoff">— from someone who genuinely wishes you well</p></div></section>
+        <section id="letter" className="chapter letter-chapter"><SectionLabel number="10">the letter</SectionLabel><div className="letter-paper"><p className="letter-to">Dear {name},</p><div className="letter-body">{liveLetter.split('\n\n').map((line, index) => <p key={`${line}-${index}`}>{line}</p>)}</div><p className="letter-signoff">— from someone who genuinely wishes you well</p></div></section>
 
         <section id="wish" className="chapter wish-chapter"><div className="wish-stars" aria-hidden="true" />{!wished ? <><p className="wish-overline">before you go…</p><h2>Make a<br /><em>wish.</em></h2><button className="wish-button" onClick={() => setWished(true)}>Make a wish <span>✦</span></button></> : <div className="wish-complete"><p>May life give you more beautiful moments<br />than you know what to wish for.</p><strong>16 <span>·</span> 09</strong><h2>Happy Birthday</h2><button className="replay-button" onClick={replay}>Replay the journey ↺</button></div>}</section>
       </>}

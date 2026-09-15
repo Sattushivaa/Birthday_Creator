@@ -17,6 +17,7 @@ export default function CreatorSettings() {
   const [pDraft, setPDraft] = useState({
     name: person.name || '',
     nickname: person.nickname || '',
+    birthday: person.birthday || '16 September',
     birthdayHeading: person.birthdayHeading || 'Happy Birthday,'
   });
   const [introDraft, setIntroDraft] = useState({
@@ -36,6 +37,10 @@ export default function CreatorSettings() {
     vignette: appearance.vignette !== false,
     animation: appearance.animation || 'medium',
     font: appearance.font || 'serif'
+  });
+  const [experienceDraft, setExperienceDraft] = useState({
+    blessing: config.experience?.blessing || '',
+    letter: config.experience?.letter || ''
   });
 
   const [pwd, setPwd] = useState({ current: '', new: '', confirm: '' });
@@ -81,6 +86,16 @@ export default function CreatorSettings() {
     finally { setBusy(false); }
   };
 
+  const saveExperience = async () => {
+    setBusy(true);
+    try {
+      await API.saveConfig({ experience: experienceDraft });
+      await refreshConfig();
+      toast('Cinematic copy saved ✓');
+    } catch (err) { toast(err.message, 'error'); }
+    finally { setBusy(false); }
+  };
+
   const changePassword = async () => {
     if (!pwd.current || !pwd.new) {
       toast('Both fields required', 'error');
@@ -121,11 +136,15 @@ export default function CreatorSettings() {
       {/* Person */}
       <div className="card form-section">
         <h3>Who is it for?</h3>
-        <div className="form-row">
+          <div className="form-row">
           <div className="form-group">
             <label className="form-label">Name *</label>
             <input value={pDraft.name} onChange={(e) => setPDraft({ ...pDraft, name: e.target.value })} placeholder="Alex" />
           </div>
+        <div className="form-group">
+          <label className="form-label">Birthday date</label>
+          <input value={pDraft.birthday} onChange={(e) => setPDraft({ ...pDraft, birthday: e.target.value })} placeholder="16 September" />
+        </div>
           <div className="form-group">
             <label className="form-label">Nickname (optional)</label>
             <input value={pDraft.nickname} onChange={(e) => setPDraft({ ...pDraft, nickname: e.target.value })} placeholder="Lex" />
@@ -189,6 +208,20 @@ export default function CreatorSettings() {
       </div>
 
       {/* Appearance */}
+      <div className="card form-section">
+        <h3>Cinematic copy</h3>
+        <p className="form-hint" style={{ marginBottom: '1rem' }}>These fields replace the blessing and letter in the screen-by-screen experience.</p>
+        <div className="form-group">
+          <label className="form-label">Birthday blessing</label>
+          <textarea rows={8} value={experienceDraft.blessing} onChange={(e) => setExperienceDraft({ ...experienceDraft, blessing: e.target.value })} placeholder="Leave blank to use the crafted default blessing." />
+        </div>
+        <div className="form-group">
+          <label className="form-label">The letter</label>
+          <textarea rows={12} value={experienceDraft.letter} onChange={(e) => setExperienceDraft({ ...experienceDraft, letter: e.target.value })} placeholder="Leave blank to use the crafted default letter." />
+        </div>
+        <button className="btn btn-primary" onClick={saveExperience} disabled={busy}>Save cinematic copy</button>
+      </div>
+
       <div className="card form-section">
         <h3>Appearance</h3>
         <div className="form-group">
