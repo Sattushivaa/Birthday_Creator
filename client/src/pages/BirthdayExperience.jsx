@@ -1,228 +1,157 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useConfig } from '../configContext.js';
+import { AKKI_NAME, AUDIO_SRC, BIRTHDAY, FAVORITE_THINGS, MEMORIES, PERSONAL_LETTER, PHOTOS } from '../birthdayConfig.js';
 import '../styles/birthday.css';
-import Particles from '../components/public/Particles.jsx';
-import IntroScreen from '../components/public/IntroScreen.jsx';
-import MusicControl from '../components/public/MusicControl.jsx';
-import MemoryAlbum from '../components/public/MemoryAlbum.jsx';
-import FinalMessage from '../components/public/FinalMessage.jsx';
-import Reveal from '../components/public/Reveal.jsx';
 
-const CHAPTERS = {
-  hero: { label: 'hello' },
-  album: { label: 'memories' },
-  final: { label: '' }
-};
+function SectionLabel({ number, children }) {
+  return <p className="chapter-label"><span>{number}</span>{children}</p>;
+}
 
-/**
- * Public birthday experience.
- * Flow: ENTER → music → hero → memory album → final message.
- * Timeline events (from /creator) auto-advance the album and scroll
- * to chapters when the song reaches their timestamps.
- */
+function Reveal({ children, className = '' }) {
+  return <div className={`story-reveal ${className}`}>{children}</div>;
+}
+
+function MemoryImage({ src, index }) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) return <div className={`memory-placeholder placeholder-${index + 1}`} aria-label="Abstract memory placeholder"><span>your photograph<br />belongs here</span></div>;
+  return <img src={src} alt="" loading="lazy" onError={() => setFailed(true)} />;
+}
+
 export default function BirthdayExperience() {
   const { config } = useConfig();
-  const person = config.person || {};
-  const music = config.music || {};
-  const appearance = config.appearance || {};
-  const accent = appearance.accent || '#e8b4b8';
-
+  const music = config?.music || {};
   const [entered, setEntered] = useState(false);
-  const [chapter, setChapter] = useState('hero');
-  const [memIdx, setMemIdx] = useState(0);
-  const [direction, setDirection] = useState('forward');
-
+  const [activeThing, setActiveThing] = useState(null);
+  const [giftOpen, setGiftOpen] = useState(false);
+  const [wished, setWished] = useState(false);
+  const [secretClicks, setSecretClicks] = useState(0);
+  const [secretVisible, setSecretVisible] = useState(false);
+  const [ambientOn, setAmbientOn] = useState(Boolean(AUDIO_SRC || music.src));
   const audioRef = useRef(null);
-  const lastFiredEvent = useRef(-1);
-  const albumRef = useRef(null);
-  const heroRef = useRef(null);
-  const finalRef = useRef(null);
-  const chapterRef = useRef('hero');
+  const name = AKKI_NAME;
+  const birthday = BIRTHDAY;
+  const memoryData = useMemo(() => MEMORIES.map((memory, index) => ({
+    ...memory,
+    image: memory.image || PHOTOS.memories[index] || config?.memories?.[index]?.image
+  })), [config]);
 
-  // Enabled memories, in order.
-  const memories = useMemo(
-    () => (config.memories || []).filter((m) => m.enabled),
-    [config.memories]
-  );
+  useEffect(() => {
+    const onKey = (event) => {
+      if (event.key === 'Escape') setActiveThing(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
-  // Timeline events relevant to the public experience.
-  const timeline = useMemo(() => (config.timeline || []).filter((e) => Number.isFinite(e.timestamp)), [config.timeline]);
-
-  // Memory id → index in enabled list
-  const memIdToIndex = useMemo(() => {
-    const map = {};
-    memories.forEach((m, i) => (map[m.id] = i));
-    return map;
-  }, [memories]);
-
-  /* ── ENTER: create audio within the user gesture, begin playback ─ */
-  const handleEnter = useCallback(() => {
+  const enter = () => {
     setEntered(true);
-    setChapter('hero');
-    const el = new Audio();
-    if (music.src) {
-      el.src = music.src;
-      el.play().catch(() => {
-        // Autoplay can still be blocked on some browsers; user can press play.
-      });
-    }
-    audioRef.current = el;
-    // Debug handle (also handy for the creator preview): window.__birthdayAudio
-    if (import.meta.env?.DEV || new URLSearchParams(window.location.search).has('preview')) {
-      window.__birthdayAudio = el;
-    }
-  }, [music.src]);
-
-  /* ── Chapter bookkeeping (for timeline scroll) ─────────────────── */
-  const goToChapter = useCallback((name) => {
-    chapterRef.current = name;
-    setChapter(name);
-    const ref =
-      name === 'hero' ? heroRef : name === 'album' ? albumRef : finalRef;
-    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, []);
-
-  /* ── Album navigation ──────────────────────────────────────────── */
-  const nextMemory = useCallback(() => {
-    setMemIdx((i) => {
-      const next = Math.min(i + 1, memories.length - 1);
-      return next;
-    });
-    setDirection('forward');
-  }, [memories.length]);
-
-  const prevMemory = useCallback(() => {
-    setMemIdx((i) => Math.max(i - 1, 0));
-    setDirection('back');
-  }, []);
-
-  useEffect(() => {
-    const onPrev = () => prevMemory();
-    const onNext = () => nextMemory();
-    window.addEventListener('album:prev', onPrev);
-    window.addEventListener('album:next', onNext);
-    return () => {
-      window.removeEventListener('album:prev', onPrev);
-      window.removeEventListener('album:next', onNext);
-    };
-  }, [prevMemory, nextMemory]);
-
-  /* ── Timeline sync while music plays ───────────────────────────── */
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const onTime = () => {
-      const t = audio.currentTime;
-      const events = timeline;
-      for (let i = lastFiredEvent.current + 1; i < events.length; i++) {
-        const ev = events[i];
-        if (t >= ev.timestamp) {
-          lastFiredEvent.current = i;
-          handleEvent(ev);
-        } else {
-          break;
-        }
-      }
-    };
-    const handleEvent = (ev) => {
-      if (ev.type === 'memory' && ev.memoryId && memIdToIndex[ev.memoryId] !== undefined) {
-        const idx = memIdToIndex[ev.memoryId];
-        setMemIdx(idx);
-        setDirection('forward');
-        if (chapterRef.current !== 'album') goToChapter('album');
-      } else if (ev.type === 'final') {
-        goToChapter('final');
-      } else if (ev.type === 'transition') {
-        // gentle no-op: marker of a chapter change
-        if (chapterRef.current === 'hero') goToChapter('hero');
-      }
-    };
-    audio.addEventListener('timeupdate', onTime);
-    return () => audio.removeEventListener('timeupdate', onTime);
-  }, [entered, timeline, memIdToIndex, goToChapter]);
-
-  /* ── Replay: restart song and memory album ─────────────────────── */
-  const handleReplay = useCallback(() => {
-    lastFiredEvent.current = -1;
-    setMemIdx(0);
-    setDirection('forward');
-    goToChapter('hero');
-    const audio = audioRef.current;
-    if (audio) {
-      audio.currentTime = 0;
+    window.setTimeout(() => document.getElementById('hero')?.scrollIntoView({ behavior: 'smooth' }), 120);
+    const source = AUDIO_SRC || music.src;
+    if (source) {
+      const audio = new Audio(source);
+      audio.loop = true;
+      audio.volume = 0.22;
       audio.play().catch(() => {});
+      audioRef.current = audio;
     }
-  }, [goToChapter]);
+  };
 
-  /* ── Share current chapter in URL hash (refresh-safe is handled by router) ── */
-  useEffect(() => {
-    const onScroll = () => {
-      // Simple scroll spy to keep the music bar visible
-      // (the bar shows once entered regardless).
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+  const replay = () => {
+    setWished(false);
+    setGiftOpen(false);
+    setEntered(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    audioRef.current?.pause();
+  };
+
+  const clickSecret = () => {
+    const count = secretClicks + 1;
+    setSecretClicks(count);
+    if (count >= 3) setSecretVisible(true);
+  };
 
   return (
-    <div
-      className="birthday-app"
-      data-vignette={appearance.vignette === true}
-      data-grain={appearance.grain === true}
-      style={{ '--accent': accent }}
-    >
-      <Particles
-        enabled={appearance.particles !== false}
-        accent={accent}
-        count={appearance.animation === 'low' ? 24 : 55}
-      />
+    <main className={`birthday-app ${entered ? 'is-entered' : ''} ${wished ? 'is-wished' : ''}`}>
+      <div className="ambient-stars" aria-hidden="true" />
+      <button className="secret-star" onClick={clickSecret} aria-label="A tiny star">✦</button>
+      {secretVisible && <div className="secret-note" role="status"><strong>You found the little secret.</strong><span>Some things are better discovered than explained.</span></div>}
 
-      {!entered ? (
-        <IntroScreen intro={config.intro} onEnter={handleEnter} />
-      ) : (
-        <>
-          <MusicControl
-            audio={audioRef.current}
-            music={music}
-            visible={entered}
-            elapsed={audioRef.current?.currentTime}
-          />
-
-          {/* ── Chapter 1: Hero ── */}
-          <section ref={heroRef} className="hero-section" data-chapter="hero">
-            {person.heroImage && (
-              <div className="hero-bg" style={{ backgroundImage: `url(${person.heroImage})` }} />
-            )}
-            <div className="hero-overlay" />
-            <div className="hero-content">
-              <Reveal>
-                <h1 className="hero-heading">
-                  {person.birthdayHeading || 'Happy Birthday,'}
-                  <span style={{ display: 'block', textTransform: 'none' }}>
-                    {person.nickname || person.name}
-                  </span>
-                </h1>
-              </Reveal>
-            </div>
-            <div className="hero-scroll-hint" aria-hidden="true">↓</div>
-          </section>
-
-          {/* ── Chapter 2: Memory album ── */}
-          <div ref={albumRef} data-chapter="album">
-            <MemoryAlbum
-              memories={memories}
-              index={memIdx}
-              direction={direction}
-              accent={accent}
-            />
+      {!entered && (
+        <section className="opening-screen" aria-label="Birthday introduction">
+          <div className="opening-orbit" aria-hidden="true"><i /><i /><i /><i /><i /></div>
+          <div className="opening-copy">
+            <p className="opening-line line-one">Some dates are just dates.</p>
+            <p className="opening-line line-two">And some become memories<br />before we even realize it.</p>
+            <p className="opening-date">16 <span>·</span> 09</p>
+            <p className="opening-name">{name}</p>
+            <p className="opening-subtitle">A little birthday universe,<br />made especially for you.</p>
+            <button className="enter-button" onClick={enter}>Enter <span>↗</span></button>
           </div>
-
-          {/* ── Chapter 3: Final message ── */}
-          <div ref={finalRef} data-chapter="final">
-            <FinalMessage config={config} onReplay={handleReplay} />
-          </div>
-        </>
+          <p className="opening-credit">16:09 / a small world in your orbit</p>
+        </section>
       )}
-    </div>
+
+      {entered && <>
+        <header className="site-rail"><span>16:09</span><span>{name}</span><span>scroll slowly ↓</span><button className="ambient-toggle" disabled={!audioRef.current} onClick={() => { if (!audioRef.current) return; if (ambientOn) audioRef.current.pause(); else audioRef.current.play().catch(() => {}); setAmbientOn(!ambientOn); }} aria-label="Toggle ambience">♫ {ambientOn ? 'ambience on' : 'enter ambience'}</button></header>
+        <section id="hero" className="chapter hero-chapter">
+          <div className="hero-moon" aria-hidden="true" />
+          <div className="hero-copy">
+            <SectionLabel number="00">the beginning</SectionLabel>
+            <p className="hero-kicker">For the person who made an ordinary timeline<br />hold extraordinary moments.</p>
+            <h1>Happy<br /><em>Birthday</em></h1>
+            <p className="hero-date">{birthday}</p>
+            <p className="hero-quote">The world has many ordinary days.<br /><em>This one happens to be yours.</em></p>
+          </div>
+          <div className="scroll-prompt">scroll slowly <span>↓</span><small>chapter 01 — the date</small></div>
+        </section>
+
+        <section id="date" className="chapter date-chapter story-light">
+          <SectionLabel number="01">the date</SectionLabel>
+          <div className="chapter-intro"><h2>The day<br /><em>you were born.</em></h2><p>There are billions of dates in history.<br />Somehow, this one became important simply because it belongs to you.</p></div>
+          <div className="date-mark" tabIndex="0" aria-label="Sixteenth of September"><strong>16</strong><span>/</span><strong>09</strong><i className="date-spark" /></div>
+          <p className="margin-note">A date, made meaningful.</p>
+        </section>
+
+        <section id="universe" className="chapter universe-chapter">
+          <SectionLabel number="02">her little universe</SectionLabel>
+          <div className="chapter-intro"><h2>Things that<br /><em>feel like you.</em></h2><p>A constellation of small details — the things that give your orbit its particular light.</p></div>
+          <div className="constellation" role="list" aria-label="Things associated with Akki ji">
+            <svg viewBox="0 0 720 440" aria-hidden="true"><path d="M100 320 Q230 90 390 220 T650 100 M180 80 Q350 250 590 350 M85 330 Q350 300 650 100" /></svg>
+            {FAVORITE_THINGS.map((thing, index) => <button key={thing.key} className={`constellation-point point-${index + 1} ${activeThing === thing.key ? 'active' : ''}`} onClick={() => setActiveThing(activeThing === thing.key ? null : thing.key)} role="listitem" aria-label={`Open ${thing.label}`}><span>{thing.label}</span><i /><b>{String(index + 1).padStart(2, '0')}</b></button>)}
+          </div>
+          <div className="thing-card" aria-live="polite">{activeThing ? <><span>{FAVORITE_THINGS.find((item) => item.key === activeThing)?.label}</span><p>{FAVORITE_THINGS.find((item) => item.key === activeThing)?.note}</p></> : <p>Touch a star to open a detail.</p>}</div>
+        </section>
+
+        <section id="moments" className="chapter moments-chapter story-light">
+          <SectionLabel number="03">the moments</SectionLabel>
+          <div className="chapter-intro"><h2>Some moments<br /><em>stay.</em></h2><p>Not because they were extraordinary —<br />but because they were ours to remember.</p></div>
+          <div className="memory-track">{memoryData.map((memory, index) => <article className="memory-card" key={memory.eyebrow}><div className="memory-visual"><MemoryImage src={memory.image} index={index} /><span className="memory-index">{memory.eyebrow}</span></div><p className="memory-title">{memory.title}</p><p>{memory.text}</p></article>)}</div>
+          <p className="swipe-hint">drag / swipe to wander <span>→</span></p>
+        </section>
+
+        <section id="details" className="chapter details-chapter">
+          <SectionLabel number="04">the unseen details</SectionLabel>
+          <div className="chapter-intro"><h2>It is always<br /><em>the little things.</em></h2><p>Noticed quietly. Remembered later.</p></div>
+          <div className="detail-grid">{['The way you create.', 'The things you notice.', 'The places you want to see.', 'The things that make you laugh.', 'The dreams you haven’t finished dreaming.'].map((detail, index) => <div className={`detail-card detail-${index + 1}`} key={detail}><span>0{index + 1}</span><h3>{detail}</h3><i /></div>)}</div>
+        </section>
+
+        <section id="korea" className="chapter korea-chapter">
+          <div className="city-lights" aria-hidden="true" /><div className="skyline" aria-hidden="true"><i /><i /><i /><i /><i /><i /><i /></div>
+          <SectionLabel number="05">korea</SectionLabel><div className="korea-copy"><p className="korea-overline">a small atmosphere for a place you love</p><h2>A little<br /><em>Seoul for you.</em></h2><p>Some places become special because we visit them. Some become special because someone we know dreams of seeing them.</p><strong>여행의 시작</strong><small>The beginning of a journey.</small></div>
+        </section>
+
+        <section id="time" className="chapter time-chapter story-light"><SectionLabel number="06">time</SectionLabel><div className="clock" aria-label="A minimal clock"><i /><b /><span /></div><div className="time-copy"><h2>I can’t<br /><em>stop time.</em></h2><p>But I hope the time ahead of you<br />is kinder than the time behind you.</p><p>May every year give you<br />something worth remembering.</p></div><p className="watch-note">for all the hours still waiting</p></section>
+
+        <section id="gift" className="chapter gift-chapter"><SectionLabel number="07">the gift box</SectionLabel><div className={`gift-stage ${giftOpen ? 'open' : ''}`}><button className="gift-box" onClick={() => setGiftOpen(!giftOpen)} aria-label={giftOpen ? 'Gift opened' : 'Open the gift'}><span className="gift-lid" /><span className="gift-body" /><span className="gift-ribbon ribbon-v" /><span className="gift-ribbon ribbon-h" /><span className="gift-label">OPEN<br />WHEN READY</span></button><div className="gift-reveal"><p>Inside: more time to make beautiful things.</p><strong>A smartwatch — for the hours that are yours.</strong><small>and a reminder to keep looking up.</small></div></div></section>
+
+        <section id="blessing" className="chapter blessing-chapter"><SectionLabel number="08">the birthday blessing</SectionLabel><div className="blessing-copy"><h2>For the year ahead<span>…</span></h2><p>May your imagination remain an inexhaustible wellspring of wonder — turning the ineffable into beauty, the intangible into art, and the unseen into something worth remembering.</p><p>May you find places that make you feel alive, people who make you feel understood, dreams that make you fearless, and ordinary days that quietly become beautiful memories.</p><p className="handwritten">May you keep creating.<br />Keep dancing.<br />Keep discovering.<br />Keep becoming.</p><p>And may life be gentle with you.</p></div></section>
+
+        <section id="future" className="chapter future-chapter story-light"><SectionLabel number="09">unwritten chapters</SectionLabel><div className="book"><div className="book-page page-left" /><div className="book-page page-right" /><div className="book-spine" /></div><div className="future-copy"><h2>There is still<br /><em>so much ahead.</em></h2><p>There are places you haven’t seen.<br /><br />Things you haven’t created.<br /><br />Songs you haven’t danced to.<br /><br />Photographs you haven’t taken.<br /><br />Memories you haven’t made.<br /><br />And versions of yourself<br />you haven’t met yet.</p><strong>May you meet them all.</strong></div></section>
+
+        <section id="letter" className="chapter letter-chapter"><SectionLabel number="10">the letter</SectionLabel><div className="letter-paper"><p className="letter-to">Dear {name},</p><div className="letter-body">{PERSONAL_LETTER.split('\n\n').map((line, index) => <p key={`${line}-${index}`}>{line}</p>)}</div><p className="letter-signoff">— from someone who genuinely wishes you well</p></div></section>
+
+        <section id="wish" className="chapter wish-chapter"><div className="wish-stars" aria-hidden="true" />{!wished ? <><p className="wish-overline">before you go…</p><h2>Make a<br /><em>wish.</em></h2><button className="wish-button" onClick={() => setWished(true)}>Make a wish <span>✦</span></button></> : <div className="wish-complete"><p>May life give you more beautiful moments<br />than you know what to wish for.</p><strong>16 <span>·</span> 09</strong><h2>Happy Birthday</h2><button className="replay-button" onClick={replay}>Replay the journey ↺</button></div>}</section>
+      </>}
+    </main>
   );
 }
