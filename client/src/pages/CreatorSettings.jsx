@@ -33,6 +33,8 @@ export default function CreatorSettings() {
   const [appDraft, setAppDraft] = useState({
     accent: appearance.accent || '#e8b4b8',
     particles: appearance.particles !== false,
+    theme: appearance.theme || 'cherry-blossom',
+    particleDensity: appearance.particleDensity || 'high',
     grain: appearance.grain !== false,
     vignette: appearance.vignette !== false,
     animation: appearance.animation || 'medium',
@@ -81,7 +83,7 @@ export default function CreatorSettings() {
     try {
       await API.saveConfig({ appearance: appDraft });
       await refreshConfig();
-      toast('Appearance saved ✓');
+      toast('Atmosphere & Appearance saved ✓');
     } catch (err) { toast(err.message, 'error'); }
     finally { setBusy(false); }
   };
@@ -207,7 +209,32 @@ export default function CreatorSettings() {
         <button className="btn btn-primary" onClick={saveFinal} disabled={busy}>Save final message</button>
       </div>
 
-      {/* Appearance */}
+      {/* Interactive 3D & Animation Theme Presets */}
+      <div className="card form-section">
+        <h3>Interactive Theme & 3D Atmosphere</h3>
+        <p className="form-hint" style={{ marginBottom: '1rem' }}>Customize the interactive canvas effects, Sakura blossom density, and particle depth.</p>
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label">Atmosphere Theme</label>
+            <select value={appDraft.theme || 'cherry-blossom'} onChange={(e) => setAppDraft({ ...appDraft, theme: e.target.value })}>
+              <option value="cherry-blossom">🌸 Sakura Blossom & Growing Tree (Cinematic)</option>
+              <option value="starry-night">✨ Celestial Starlight & Constellations</option>
+              <option value="golden-dust">✨ Golden Aurora & Floating Sparks</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Blossom / Particle Density</label>
+            <select value={appDraft.particleDensity || 'high'} onChange={(e) => setAppDraft({ ...appDraft, particleDensity: e.target.value })}>
+              <option value="low">Subtle (25 particles)</option>
+              <option value="medium">Balanced (45 particles)</option>
+              <option value="high">Lush / Rich (75 interactive blossoms)</option>
+            </select>
+          </div>
+        </div>
+        <button className="btn btn-primary" onClick={saveAppearance} disabled={busy} style={{ marginTop: '1rem' }}>Save atmosphere & 3D theme</button>
+      </div>
+
+      {/* Cinematic copy */}
       <div className="card form-section">
         <h3>Cinematic copy</h3>
         <p className="form-hint" style={{ marginBottom: '1rem' }}>These fields replace the blessing and letter in the screen-by-screen experience.</p>
