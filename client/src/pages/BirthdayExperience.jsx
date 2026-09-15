@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import anime from 'animejs/lib/anime.es.js';
 import { useConfig } from '../configContext.js';
 import { AKKI_NAME, AUDIO_SRC, BIRTHDAY, FAVORITE_THINGS, MEMORIES, PERSONAL_LETTER, PHOTOS } from '../birthdayConfig.js';
 import '../styles/birthday.css';
@@ -27,7 +28,9 @@ export default function BirthdayExperience() {
   const [secretClicks, setSecretClicks] = useState(0);
   const [secretVisible, setSecretVisible] = useState(false);
   const [ambientOn, setAmbientOn] = useState(Boolean(AUDIO_SRC || music.src));
+  const [wishParticles, setWishParticles] = useState(false);
   const audioRef = useRef(null);
+  const mainRef = useRef(null);
   const name = config?.person?.name?.trim() || AKKI_NAME;
   const birthday = config?.person?.birthday?.trim() || BIRTHDAY;
   const experience = config?.experience || {};
@@ -47,13 +50,42 @@ export default function BirthdayExperience() {
 
   useEffect(() => {
     if (!entered) return undefined;
-    const screens = Array.from(document.querySelectorAll('.birthday-app.is-entered .chapter'));
+    const root = mainRef.current;
+    const screens = Array.from(root?.querySelectorAll('.chapter') || []);
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => entry.target.classList.toggle('scene-active', entry.isIntersecting));
+      entries.forEach((entry) => {
+        entry.target.classList.toggle('scene-active', entry.isIntersecting);
+        if (!entry.isIntersecting || reduced) return;
+        const chapter = entry.target;
+        const label = chapter.querySelector('.chapter-label');
+        const intro = chapter.querySelectorAll('.chapter-intro > *');
+        const copy = chapter.querySelectorAll('.korea-copy > *, .time-copy > *, .future-copy > *, .blessing-copy > *, .letter-paper > *');
+        const points = chapter.querySelectorAll('.constellation-point');
+        const blossoms = chapter.querySelectorAll('.blossom-field i');
+        anime.remove([label, ...intro, ...copy, ...points]);
+        anime.timeline({ easing: 'easeOutExpo' })
+          .add({ targets: label, opacity: [0, 1], translateY: [-18, 0], duration: 700 })
+          .add({ targets: intro, opacity: [0, 1], translateY: [26, 0], delay: anime.stagger(90), duration: 900 }, '-=420')
+          .add({ targets: copy, opacity: [0, 1], translateY: [24, 0], delay: anime.stagger(70), duration: 850 }, '-=650')
+          .add({ targets: points, opacity: [0, 1], scale: [.2, 1], translateY: [10, 0], delay: anime.stagger(65), duration: 700 }, '-=520')
+          .add({ targets: blossoms, opacity: [0, 1], scale: [.2, 1], rotate: [-30, 0], delay: anime.stagger(45), duration: 900 }, '-=540');
+        if (chapter.id === 'date') anime({ targets: chapter.querySelectorAll('.date-mark strong'), scale: [.5, 1], opacity: [0, 1], delay: anime.stagger(110), duration: 1100, easing: 'easeOutElastic(1, .55)' });
+        if (chapter.id === 'korea') anime({ targets: chapter.querySelector('.city-lights'), translateX: ['-4%', '4%'], direction: 'alternate', loop: true, duration: 5000, easing: 'easeInOutSine' });
+        if (chapter.id === 'details') anime({ targets: chapter.querySelectorAll('.detail-card'), rotate: [-4, 0], opacity: [0, 1], translateY: [35, 0], delay: anime.stagger(100), duration: 1000, easing: 'easeOutExpo' });
+      });
     }, { threshold: 0.58 });
     screens.forEach((screen) => observer.observe(screen));
-    return () => observer.disconnect();
+    return () => { observer.disconnect(); anime.remove(root?.querySelectorAll('*')); };
   }, [entered]);
+
+  useEffect(() => {
+    if (!wishParticles || !mainRef.current || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
+    const particles = mainRef.current.querySelectorAll('.wish-particle');
+    anime({ targets: particles, opacity: [0, 1, 0], translateX: () => anime.random(-window.innerWidth * .48, window.innerWidth * .48), translateY: () => anime.random(-window.innerHeight * .42, window.innerHeight * .42), scale: () => anime.random(.5, 2.2), delay: anime.stagger(10, { start: 150 }), duration: () => anime.random(1400, 2600), easing: 'easeOutExpo' });
+    anime({ targets: '.wish-complete', opacity: [0, 1], translateY: [30, 0], delay: 480, duration: 1800, easing: 'easeOutExpo' });
+    return () => anime.remove(particles);
+  }, [wishParticles]);
 
   useEffect(() => {
     const onKey = (event) => {
@@ -74,14 +106,34 @@ export default function BirthdayExperience() {
       audio.play().catch(() => {});
       audioRef.current = audio;
     }
+    requestAnimationFrame(() => anime({ targets: '.hero-copy > *, .hero-moon', opacity: [0, 1], translateY: [40, 0], scale: ['.92', '1'], delay: anime.stagger(130), duration: 1400, easing: 'easeOutExpo' }));
   };
 
   const replay = () => {
     setWished(false);
     setGiftOpen(false);
     setEntered(false);
+    setWishParticles(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
     audioRef.current?.pause();
+  };
+
+  const openWish = () => {
+    setWished(true);
+    setWishParticles(true);
+  };
+
+  const toggleGift = () => {
+    setGiftOpen((isOpen) => {
+      const next = !isOpen;
+      if (next && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        anime.timeline({ easing: 'easeOutExpo' })
+          .add({ targets: '.gift-box', translateY: ['8vh', '3vh'], rotate: ['0deg', '-3deg'], duration: 750 })
+          .add({ targets: '.gift-lid', rotateX: [0, 105], translateY: [0, -20], duration: 950 }, '-=520')
+          .add({ targets: '.gift-reveal', opacity: [0, 1], translateY: [25, 0], duration: 1000 }, '-=400');
+      }
+      return next;
+    });
   };
 
   const clickSecret = () => {
@@ -91,7 +143,7 @@ export default function BirthdayExperience() {
   };
 
   return (
-    <main className={`birthday-app ${entered ? 'is-entered' : ''} ${wished ? 'is-wished' : ''}`} style={{ '--gold': config?.appearance?.accent || '#cfb899' }}>
+    <main ref={mainRef} className={`birthday-app ${entered ? 'is-entered' : ''} ${wished ? 'is-wished' : ''}`} style={{ '--gold': config?.appearance?.accent || '#cfb899' }}>
       <div className="ambient-stars" aria-hidden="true" />
       <button className="secret-star" onClick={clickSecret} aria-label="A tiny star">✦</button>
       {secretVisible && <div className="secret-note" role="status"><strong>You found the little secret.</strong><span>Some things are better discovered than explained.</span></div>}
@@ -162,15 +214,15 @@ export default function BirthdayExperience() {
 
         <section id="time" className="chapter time-chapter story-light"><SectionLabel number="06">time</SectionLabel><div className="clock" aria-label="A minimal clock"><i /><b /><span /></div><div className="time-copy"><h2>I can’t<br /><em>stop time.</em></h2><p>But I hope the time ahead of you<br />is kinder than the time behind you.</p><p>May every year give you<br />something worth remembering.</p></div><p className="watch-note">for all the hours still waiting</p></section>
 
-        <section id="gift" className="chapter gift-chapter"><SectionLabel number="07">the gift box</SectionLabel><div className={`gift-stage ${giftOpen ? 'open' : ''}`}><button className="gift-box" onClick={() => setGiftOpen(!giftOpen)} aria-label={giftOpen ? 'Gift opened' : 'Open the gift'}><span className="gift-lid" /><span className="gift-body" /><span className="gift-ribbon ribbon-v" /><span className="gift-ribbon ribbon-h" /><span className="gift-label">OPEN<br />WHEN READY</span></button><div className="gift-reveal"><p>Inside: more time to make beautiful things.</p><strong>A smartwatch — for the hours that are yours.</strong><small>and a reminder to keep looking up.</small></div></div></section>
+        <section id="gift" className="chapter gift-chapter"><SectionLabel number="07">the gift box</SectionLabel><div className={`gift-stage ${giftOpen ? 'open' : ''}`}><button className="gift-box" onClick={toggleGift} aria-label={giftOpen ? 'Gift opened' : 'Open the gift'}><span className="gift-lid" /><span className="gift-body" /><span className="gift-ribbon ribbon-v" /><span className="gift-ribbon ribbon-h" /><span className="gift-label">OPEN<br />WHEN READY</span></button><div className="gift-reveal"><p>Inside: more time to make beautiful things.</p><strong>A smartwatch — for the hours that are yours.</strong><small>and a reminder to keep looking up.</small></div></div></section>
 
-        <section id="blessing" className="chapter blessing-chapter"><SectionLabel number="08">the birthday blessing</SectionLabel><div className="blessing-copy"><h2>For the year ahead<span>…</span></h2>{liveBlessing.split('\n\n').map((paragraph, index) => <p className={index === 2 ? 'handwritten' : ''} key={`${paragraph}-${index}`}>{paragraph}</p>)}</div></section>
+        <section id="blessing" className="chapter blessing-chapter"><div className="blossom-field" aria-hidden="true">{Array.from({ length: 18 }, (_, index) => <i key={index} />)}</div><SectionLabel number="08">the birthday blessing</SectionLabel><div className="blessing-copy"><h2>For the year ahead<span>…</span></h2>{liveBlessing.split('\n\n').map((paragraph, index) => <p className={index === 2 ? 'handwritten' : ''} key={`${paragraph}-${index}`}>{paragraph}</p>)}</div></section>
 
         <section id="future" className="chapter future-chapter story-light"><SectionLabel number="09">unwritten chapters</SectionLabel><div className="book"><div className="book-page page-left" /><div className="book-page page-right" /><div className="book-spine" /></div><div className="future-copy"><h2>There is still<br /><em>so much ahead.</em></h2><p>There are places you haven’t seen.<br /><br />Things you haven’t created.<br /><br />Songs you haven’t danced to.<br /><br />Photographs you haven’t taken.<br /><br />Memories you haven’t made.<br /><br />And versions of yourself<br />you haven’t met yet.</p><strong>May you meet them all.</strong></div></section>
 
         <section id="letter" className="chapter letter-chapter"><SectionLabel number="10">the letter</SectionLabel><div className="letter-paper"><p className="letter-to">Dear {name},</p><div className="letter-body">{liveLetter.split('\n\n').map((line, index) => <p key={`${line}-${index}`}>{line}</p>)}</div><p className="letter-signoff">— from someone who genuinely wishes you well</p></div></section>
 
-        <section id="wish" className="chapter wish-chapter"><div className="wish-stars" aria-hidden="true" />{!wished ? <><p className="wish-overline">before you go…</p><h2>Make a<br /><em>wish.</em></h2><button className="wish-button" onClick={() => setWished(true)}>Make a wish <span>✦</span></button></> : <div className="wish-complete"><p>May life give you more beautiful moments<br />than you know what to wish for.</p><strong>16 <span>·</span> 09</strong><h2>Happy Birthday</h2><button className="replay-button" onClick={replay}>Replay the journey ↺</button></div>}</section>
+        <section id="wish" className="chapter wish-chapter"><div className="wish-stars" aria-hidden="true" />{wished && <div className="wish-particle-field" aria-hidden="true">{Array.from({ length: 90 }, (_, index) => <i className="wish-particle" key={index} />)}</div>}{!wished ? <><p className="wish-overline">before you go…</p><h2>Make a<br /><em>wish.</em></h2><button className="wish-button" onClick={openWish}>Make a wish <span>✦</span></button></> : <div className="wish-complete"><p>May life give you more beautiful moments<br />than you know what to wish for.</p><strong>16 <span>·</span> 09</strong><h2>Happy Birthday</h2><button className="replay-button" onClick={replay}>Replay the journey ↺</button></div>}</section>
       </>}
     </main>
   );
